@@ -1,28 +1,40 @@
 import redisClient from './redisClient.js';
 import { generateRoomCode } from '../utils/generateRoomCode.js';
 
+// Create new lobby with host nickname
 
-export const createLobby = async (hostNickname) => {
-  const lobbyCode = generateRoomCode();
+export const createLobby = async (nickname, socketId) => {
+  const roomCode = generateRoomCode();
+
   const lobbyData = {
-    code: lobbyCode,
-    host: hostNickname,
-    players: [hostNickname],
+    code: roomCode,
+    players: [{ nickname, socketId }],
+    host: socketId
   };
 
-  await redisClient.set(`lobby:${lobbyCode}`, JSON.stringify(lobbyData));
-  
+  await redisClient.set(`lobby:${roomCode}`, JSON.stringify(lobbyData));
   return lobbyData;
 };
 
-export const joinLobby = async (lobbyCode, nickname) => {
-  const lobbyRaw = await redisClient.get(`lobby:${lobbyCode}`);
-  if (!lobbyRaw) return null;
 
-  const lobbyData = JSON.parse(lobbyRaw);
-  lobbyData.players.push(nickname);
+// Join existing lobby
+export const joinLobby = async (code, nickname, socketId) => {
+  const raw = await redisClient.get(`lobby:${code}`);
+  if (!raw) return null;
 
-  await redisClient.set(`lobby:${lobbyCode}`, JSON.stringify(lobbyData));
+  const lobby = JSON.parse(raw);
 
-  return lobbyData;
+  if (lobby.players.find(p => p.nickname === nickname)) return null;
+
+  lobby.players.push({ nickname, socketId });
+
+  await redisClient.set(`lobby:${code}`, JSON.stringify(lobby));
+  return lobby;
 };
+
+// Get current lobby
+export const getLobby = async (code) => {
+  const raw = await redisClient.get(`lobby:${code}`);
+  return raw ? JSON.parse(raw) : null;
+};
+
