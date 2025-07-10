@@ -16,28 +16,30 @@ const Game = () => {
   const canvasRef = useRef(null);
   const isDrawer = game?.drawer?.socketId === socketId;
 
-  // Load updated game state (if backend sends it)
+  // Update canvas or game state
   useEffect(() => {
-    socket.on('game-updated', (newGame) => {
+    const handleGameUpdate = (newGame) => {
       setGame(newGame);
-    });
+    };
 
-    // Receive drawing data from drawer
-    socket.on('drawing-update', ({ paths }) => {
+    const handleDrawingUpdate = ({ paths }) => {
       if (!isDrawer && canvasRef.current) {
         canvasRef.current.loadPaths(paths);
       }
-    });
+    };
+
+    socket.on('game-updated', handleGameUpdate);
+    socket.on('drawing-update', handleDrawingUpdate);
 
     return () => {
-      socket.off('game-updated');
-      socket.off('drawing-update');
+      socket.off('game-updated', handleGameUpdate);
+      socket.off('drawing-update', handleDrawingUpdate);
     };
   }, [isDrawer]);
 
-  // Drawer emits drawing changes
+  // Drawer draws and emits path
   const handleDrawChange = async () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current || !isDrawer) return;
     const paths = await canvasRef.current.exportPaths();
     socket.emit('drawing', { lobbyCode, paths });
   };
@@ -56,21 +58,24 @@ const Game = () => {
       <p>🖌️ Drawer: {game.drawer.nickname}</p>
       <p>👥 Players: {game.players.length}</p>
 
-      {/* Debug info */}
-      <p className="mt-2 text-gray-500 text-sm">
-        You: <strong>{nickname}</strong> | socketId: {socketId}<br />
-        Drawer socketId: {game.drawer.socketId}
-      </p>
+      <p className="mt-2 text-yellow-400 text-lg">
+  Hello, <strong>{nickname}</strong>! 🎉
+  {isDrawer ? ' You are the DRAWER 🎨 – start drawing!' : ' You are a GUESSER 🤔 – try to guess the word!'}
+</p>
 
       <div className="mt-6 mx-auto w-[500px] h-[400px] border-2 border-black">
         <ReactSketchCanvas
-          ref={canvasRef}
-          strokeWidth={4}
-          strokeColor="black"
-          className="w-full h-full"
-          readOnly={!isDrawer}
-          onChange={isDrawer ? handleDrawChange : undefined}
-        />
+  ref={canvasRef}
+  strokeWidth={4}
+  strokeColor="black"
+  className="w-full h-full"
+  readOnly={!isDrawer}
+  onChange={isDrawer ? handleDrawChange : undefined}
+  style={{
+    pointerEvents: isDrawer ? 'auto' : 'none', // disables interaction for guessers
+  }}
+/>
+
       </div>
 
       {!isDrawer && (
