@@ -27,7 +27,7 @@ export default function Game() {
       if (newGame.players.find((p) => p.socketId === socketId)) {
         setGame(newGame);
         setIsCorrect(null);
-        setTimeLeft(Math.floor(newGame.roundDuration / 1000)); // Reset timer
+        setTimeLeft(Math.floor(newGame.roundDuration / 1000));
         if (canvasRef.current) {
           canvasRef.current.clearCanvas();
         }
@@ -36,9 +36,15 @@ export default function Game() {
         navigate('/');
       }
     },
-    'drawing-update': ({ paths }) => {
+    'drawing-update': ({ paths, strokeColor, strokeWidth, isErasing }) => {
       if (!isDrawer && canvasRef.current) {
-        canvasRef.current.loadPaths(paths);
+        // Apply paths with attributes
+        const formattedPaths = paths.map(path => ({
+          ...path,
+          strokeColor: isErasing ? 'white' : strokeColor,
+          strokeWidth: isErasing ? strokeWidth : path.strokeWidth || strokeWidth,
+        }));
+        canvasRef.current.loadPaths(formattedPaths);
       }
     },
     'game-fetched': (fetchedGame) => {
@@ -79,7 +85,13 @@ export default function Game() {
     const debounceTimeout = setTimeout(async () => {
       try {
         const paths = await canvasRef.current.exportPaths();
-        socket.emit('drawing', { lobbyCode, paths });
+        socket.emit('drawing', { 
+          lobbyCode, 
+          paths,
+          strokeColor: canvasRef.current.strokeColor || 'black',
+          strokeWidth: canvasRef.current.strokeWidth || 4,
+          isErasing: canvasRef.current.eraserWidth > 0,
+        });
       } catch (error) {
         console.error('Error exporting paths:', error);
       }
@@ -108,10 +120,6 @@ export default function Game() {
       <p>👥 Players: {game.players.length}</p>
       <p className="text-lg font-bold mt-2">⏰ Time Left: {timeLeft !== null ? `${timeLeft}s` : 'Loading...'}</p>
       {isDrawer && <p className="text-lg font-bold mt-2">Draw this: {game.currentWord}</p>}
-      <p className="mt-2 text-yellow-400 text-lg">
-        Hello, <strong>{nickname}</strong>! 🎉
-        {isDrawer ? ' You are the DRAWER 🎨 – start drawing!' : ' You are a GUESSER 🤔 – try to guess the word!'}
-      </p>
       <Canvas isDrawer={isDrawer} onDrawChange={handleDrawChange} ref={canvasRef} />
       {!isDrawer && (
         <>

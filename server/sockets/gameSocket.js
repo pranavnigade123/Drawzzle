@@ -2,7 +2,7 @@ import redisClient from '../redis/redisClient.js';
 import { WORDS } from '../utils/words.js';
 
 export default function gameSocket(io, socket) {
-  socket.on('drawing', async ({ lobbyCode, paths }) => {
+  socket.on('drawing', async ({ lobbyCode, paths, strokeColor, strokeWidth, isErasing }) => {
     const gameData = await redisClient.get(`game:${lobbyCode}`);
     if (!gameData) {
       console.error(`Game ${lobbyCode} not found for drawing event`);
@@ -11,7 +11,7 @@ export default function gameSocket(io, socket) {
 
     const game = JSON.parse(gameData);
     if (game?.drawer?.socketId === socket.id) {
-      socket.to(lobbyCode).emit('drawing-update', { paths });
+      socket.to(lobbyCode).emit('drawing-update', { paths, strokeColor, strokeWidth, isErasing });
     }
   });
 
