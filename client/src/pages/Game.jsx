@@ -1,15 +1,14 @@
-import { forwardRef } from 'react';
-import { useLocation, useParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import socket from '../sockets/lobby';
-import Canvas from '../components/Canvas';
-import { GuessInput } from '../components/GuessInput';
-import Chat from '../components/Chat';
-import { Button } from '../components/Button';
-import { useSocket } from '../hooks/useSocket';
 import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import Button from '../components/Button';
+import Canvas from '../components/Canvas';
+import Chat from '../components/Chat';
+import GuessInput from '../components/GuessInput';
+import useSocket from '../hooks/useSocket';
+import socket from '../sockets/socket';
 
-const Game = () => {
+export default function Game() {
   const { state } = useLocation();
   const { lobbyCode } = useParams();
   const navigate = useNavigate();
@@ -28,25 +27,18 @@ const Game = () => {
       if (canvasRef.current) {
         canvasRef.current.clearCanvas();
       }
-      console.log('Game updated, round:', newGame.round, 'drawer:', newGame.drawer.nickname);
     },
     'drawing-update': ({ paths }) => {
       if (!isDrawer && canvasRef.current) {
-        try {
-          canvasRef.current.loadPaths(paths);
-        } catch (error) {
-          console.error('Error loading paths:', error);
-        }
+        canvasRef.current.loadPaths(paths);
       }
     },
     'game-fetched': (fetchedGame) => setGame(fetchedGame),
     'game-over': ({ game }) => navigate(`/game-over/${lobbyCode}`, { state: { game } }),
     'chat-message': ({ nickname, message, isCorrect, timestamp }) => {
       setMessages((prev) => [...prev, { nickname, message, isCorrect, timestamp }]);
-      console.log('Chat message received:', { nickname, message, isCorrect });
     },
     'guess-result': ({ isCorrect }) => {
-      console.log('Guess result received:', isCorrect);
       setIsCorrect(isCorrect);
       setTimeout(() => setIsCorrect(null), 3000);
     },
@@ -60,11 +52,10 @@ const Game = () => {
     if (!state?.game) socket.emit('get-game', { code: lobbyCode });
   }, [lobbyCode, state]);
 
-  let debounceTimeout;
-  const handleDrawChange = async () => {
+  const handleDrawChange = () => {
     if (!canvasRef.current || !isDrawer) return;
-    clearTimeout(debounceTimeout);
-    debounceTimeout = setTimeout(async () => {
+
+    const debounceTimeout = setTimeout(async () => {
       try {
         const paths = await canvasRef.current.exportPaths();
         socket.emit('drawing', { lobbyCode, paths });
@@ -72,10 +63,11 @@ const Game = () => {
         console.error('Error exporting paths:', error);
       }
     }, 100);
+
+    return () => clearTimeout(debounceTimeout);
   };
 
   const handleGuessSubmit = (guess) => {
-    console.log('Submitting guess:', guess);
     socket.emit('submit-guess', { lobbyCode, nickname, guess });
   };
 
@@ -92,7 +84,6 @@ const Game = () => {
         Hello, <strong>{nickname}</strong>! 🎉
         {isDrawer ? ' You are the DRAWER 🎨 – start drawing!' : ' You are a GUESSER 🤔 – try to guess the word!'}
       </p>
-
       <Canvas isDrawer={isDrawer} onDrawChange={handleDrawChange} ref={canvasRef} />
       {!isDrawer && <GuessInput onSubmit={handleGuessSubmit} isCorrect={isCorrect} />}
       <Chat messages={messages} />
@@ -101,11 +92,9 @@ const Game = () => {
           className="mt-4 bg-purple-600 text-white"
           onClick={() => socket.emit('next-round', { code: lobbyCode })}
         >
-          Next Round (Test)
+          Next Round
         </Button>
       )}
     </div>
   );
-};
-
-export default Game;
+}

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams, useNavigate } from 'react-router-dom';
-import socket from '../sockets/lobby';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import socket from '../sockets/socket';
 
-const LobbyRoom = () => {
+export default function LobbyRoom() {
   const { lobbyCode } = useParams();
   const { state } = useLocation();
   const [lobby, setLobby] = useState(state?.lobby || null);
@@ -42,8 +42,6 @@ const LobbyRoom = () => {
           <li key={p.nickname}>👤 {p.nickname}</li>
         ))}
       </ul>
-
-      {/* Only host sees this */}
       {lobby.host === socket.id && (
         <button
           className="bg-purple-600 text-white px-4 py-2 rounded"
@@ -54,6 +52,4 @@ const LobbyRoom = () => {
       )}
     </div>
   );
-};
-
-export default LobbyRoom;
+}

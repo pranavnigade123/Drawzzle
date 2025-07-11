@@ -1,3 +1,4 @@
+
 import redisClient from '../redis/redisClient.js';
 import { WORDS } from '../utils/words.js';
 
@@ -14,24 +15,15 @@ export default function gameSocket(io, socket) {
 
   socket.on('submit-guess', async ({ lobbyCode, nickname, guess }) => {
     const gameData = await redisClient.get(`game:${lobbyCode}`);
-    if (!gameData) {
-      console.error('No game data found for lobby:', lobbyCode);
-      return;
-    }
+    if (!gameData) return;
 
     const game = JSON.parse(gameData);
-    if (!game.currentWord) {
-      console.error('No currentWord in game state for lobby:', lobbyCode);
-      return;
-    }
+    if (!game.currentWord) return;
 
     const isCorrect = guess.toLowerCase().trim() === game.currentWord.toLowerCase().trim();
-    const player = game.players.find(p => p.nickname === nickname);
+    const player = game.players.find((p) => p.nickname === nickname);
 
-    if (!player) {
-      console.error('Player not found:', nickname);
-      return;
-    }
+    if (!player) return;
 
     if (!player.score) player.score = 0;
     if (isCorrect) {
@@ -44,7 +36,6 @@ export default function gameSocket(io, socket) {
         io.to(lobbyCode).emit('next-round', { code: lobbyCode });
       }, 1000);
     } else {
-      console.log(`Incorrect guess by ${nickname}: ${guess}`);
       io.to(lobbyCode).emit('chat-message', { nickname, message: guess, isCorrect: false, timestamp: Date.now() });
       socket.emit('guess-result', { isCorrect: false });
     }

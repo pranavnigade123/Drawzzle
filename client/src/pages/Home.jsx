@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import socket from '../sockets/lobby';
-import { Button } from '../components/Button';
+import Button from '../components/Button';
+import socket from '../sockets/socket';
 
-const Home = () => {
+export default function Home() {
   const [nickname, setNickname] = useState('');
   const [code, setCode] = useState('');
   const navigate = useNavigate();
@@ -76,6 +77,4 @@ const Home = () => {
       </div>
     </div>
   );
-};
-
-export default Home;
+}

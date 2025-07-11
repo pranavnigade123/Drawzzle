@@ -1,12 +1,8 @@
 import redisClient from '../redis/redisClient.js';
-import { createLobby, joinLobby, getLobby } from '../redis/lobbyStore.js';
+import { createLobby, getLobby, joinLobby } from '../redis/lobbyStore.js';
 import { WORDS } from '../utils/words.js';
 
-// Word list for the game
-// const WORDS = ['apple', 'house', 'tree', 'car', 'dog'];
-
 export default function lobbySocket(io, socket) {
-  // Create lobby
   socket.on('create-lobby', async ({ nickname }) => {
     const lobby = await createLobby(nickname, socket.id);
     socket.join(lobby.code);
@@ -14,7 +10,6 @@ export default function lobbySocket(io, socket) {
     io.to(lobby.code).emit('lobby-updated', lobby);
   });
 
-  // Join lobby
   socket.on('join-lobby', async ({ code, nickname }) => {
     const lobby = await joinLobby(code, nickname, socket.id);
     if (!lobby) {
@@ -25,7 +20,6 @@ export default function lobbySocket(io, socket) {
     io.to(code).emit('lobby-updated', lobby);
   });
 
-  // Get lobby
   socket.on('get-lobby', async ({ code }) => {
     const lobby = await getLobby(code);
     if (lobby) {
@@ -35,7 +29,6 @@ export default function lobbySocket(io, socket) {
     }
   });
 
-  // Start game
   socket.on('start-game', async ({ code }) => {
     const lobby = await getLobby(code);
     if (!lobby) return;
@@ -53,7 +46,7 @@ export default function lobbySocket(io, socket) {
       totalRounds: 5,
       drawer: players[drawerIndex],
       drawerIndex,
-      players: players.map(p => ({ ...p, score: 0 })),
+      players: players.map((p) => ({ ...p, score: 0 })),
       guesses: [],
       currentWord: WORDS[Math.floor(Math.random() * WORDS.length)],
     };
@@ -62,16 +55,11 @@ export default function lobbySocket(io, socket) {
     io.to(code).emit('game-started', { game });
   });
 
-  // Next round
   socket.on('next-round', async ({ code }) => {
     const gameData = await redisClient.get(`game:${code}`);
-    if (!gameData) {
-      console.error('No game data found for next round in lobby:', code);
-      return;
-    }
+    if (!gameData) return;
 
     const game = JSON.parse(gameData);
-    console.log('Next round triggered, current round:', game.round);
     if (game.round >= game.totalRounds) {
       await redisClient.del(`game:${code}`);
       io.to(code).emit('game-over', { game });
@@ -86,10 +74,8 @@ export default function lobbySocket(io, socket) {
 
     await redisClient.set(`game:${code}`, JSON.stringify(game));
     io.to(code).emit('game-updated', game);
-    console.log('Next round completed, new round:', game.round);
   });
 
-  // Get game state
   socket.on('get-game', async ({ code }) => {
     const gameData = await redisClient.get(`game:${code}`);
     if (gameData) {
@@ -97,15 +83,5 @@ export default function lobbySocket(io, socket) {
     } else {
       socket.emit('lobby-error', { message: 'Game not found.' });
     }
-  });
-
-  // Drawing
-  socket.on('drawing', ({ lobbyCode, paths }) => {
-  socket.to(lobbyCode).emit('drawing-update', { paths });
-});
-
-  // Disconnect
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id} at ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}`);
   });
 }
