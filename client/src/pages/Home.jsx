@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import socket from '../sockets/lobby';
 
+
 const Home = () => {
   const [nickname, setNickname] = useState('');
   const [code, setCode] = useState('');

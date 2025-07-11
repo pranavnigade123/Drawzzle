@@ -37,4 +37,3 @@ export const getLobby = async (code) => {
   const raw = await redisClient.get(`lobby:${code}`);
   return raw ? JSON.parse(raw) : null;
 };
-
