@@ -4,6 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import redisClient from './redis/redisClient.js';
+import chatSocket from './sockets/chatSocket.js';
 import gameSocket from './sockets/gameSocket.js';
 import lobbySocket from './sockets/lobbySocket.js';
 
@@ -24,8 +25,10 @@ app.use(express.json());
 const PORT = process.env.PORT || 5000;
 
 io.on('connection', (socket) => {
+  console.log(`Client connected: ${socket.id}`);
   lobbySocket(io, socket);
   gameSocket(io, socket);
+  chatSocket(io, socket);
 });
 
 redisClient.connect()
