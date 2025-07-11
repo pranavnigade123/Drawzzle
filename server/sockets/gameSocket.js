@@ -11,7 +11,27 @@ export default function gameSocket(io, socket) {
 
     const game = JSON.parse(gameData);
     if (game?.drawer?.socketId === socket.id) {
+      console.log('Broadcasting drawing update to lobby:', lobbyCode, { paths, strokeColor, strokeWidth, isErasing });
       socket.to(lobbyCode).emit('drawing-update', { paths, strokeColor, strokeWidth, isErasing });
+      // Verify room join
+      const rooms = io.sockets.adapter.rooms.get(lobbyCode);
+      console.log('Clients in room', lobbyCode, ':', rooms ? rooms.size : 0);
+    }
+  });
+
+  socket.on('clear-canvas', async ({ lobbyCode }) => {
+    const gameData = await redisClient.get(`game:${lobbyCode}`);
+    if (!gameData) {
+      console.error(`Game ${lobbyCode} not found for clear-canvas event`);
+      return;
+    }
+
+    const game = JSON.parse(gameData);
+    if (game?.drawer?.socketId === socket.id) {
+      console.log('Broadcasting clear-canvas to lobby:', lobbyCode);
+      socket.to(lobbyCode).emit('clear-canvas');
+      const rooms = io.sockets.adapter.rooms.get(lobbyCode);
+      console.log('Clients in room', lobbyCode, ':', rooms ? rooms.size : 0);
     }
   });
 

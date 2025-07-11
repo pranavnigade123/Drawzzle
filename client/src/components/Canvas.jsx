@@ -1,18 +1,65 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { ReactSketchCanvas } from 'react-sketch-canvas';
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from 'react';
+import { Stage, Layer, Line } from 'react-konva';
 import Button from './Button';
+import socket from '../sockets/socket';
 
-const Canvas = forwardRef(({ isDrawer, onDrawChange }, ref) => {
-  const canvasRef = useRef(null);
+const Canvas = forwardRef(({ isDrawer, onDrawChange, lobbyCode }, ref) => {
+  const stageRef = useRef(null);
+  const [lines, setLines] = useState([]);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [strokeColor, setStrokeColor] = useState('black');
   const [strokeWidth, setStrokeWidth] = useState(4);
   const [isErasing, setIsErasing] = useState(false);
 
+  useEffect(() => {
+    if (!isDrawer) {
+      console.log('Guesser canvas initialized, lines:', lines);
+    }
+  }, [isDrawer, lines]);
+
   useImperativeHandle(ref, () => ({
-    clearCanvas: () => canvasRef.current?.clearCanvas(),
-    exportPaths: () => canvasRef.current?.exportPaths(),
-    loadPaths: (paths) => canvasRef.current?.loadPaths(paths),
+    clearCanvas: () => {
+      console.log('Clearing canvas for lobby:', lobbyCode);
+      setLines([]); // Reset state
+      if (stageRef.current) {
+        stageRef.current.clear();
+        stageRef.current.draw(); // Force re-render
+      }
+      if (isDrawer) {
+        socket.emit('clear-canvas', { lobbyCode });
+      }
+    },
+    loadPaths: (newLines) => {
+      console.log('Loading paths on guesser:', newLines);
+      setLines(newLines);
+      if (stageRef.current) {
+        stageRef.current.batchDraw(); // Ensure immediate redraw
+      }
+    },
+    exportPaths: () => lines,
+    getStrokeAttributes: () => ({ strokeColor, strokeWidth, isErasing }),
   }));
+
+  const handleMouseDown = (e) => {
+    if (!isDrawer) return;
+    setIsDrawing(true);
+    const pos = e.target.getStage().getPointerPosition();
+    setLines([...lines, { points: [pos.x, pos.y], strokeColor: isErasing ? 'white' : strokeColor, strokeWidth, isErasing }]);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDrawing || !isDrawer) return;
+    const stage = e.target.getStage();
+    const point = stage.getPointerPosition();
+    const lastLine = lines[lines.length - 1];
+    lastLine.points = lastLine.points.concat([point.x, point.y]);
+    setLines([...lines.slice(0, -1), lastLine]);
+    onDrawChange();
+  };
+
+  const handleMouseUp = () => {
+    setIsDrawing(false);
+  };
 
   const handleColorChange = (color) => {
     setStrokeColor(color);
@@ -74,21 +121,35 @@ const Canvas = forwardRef(({ isDrawer, onDrawChange }, ref) => {
           >
             Eraser
           </Button>
-          <Button onClick={() => canvasRef.current?.clearCanvas()}>
+          <Button onClick={() => ref.current.clearCanvas()}>
             Clear
           </Button>
         </div>
       )}
-      <ReactSketchCanvas
-        ref={canvasRef}
-        strokeWidth={strokeWidth}
-        strokeColor={isErasing ? 'white' : strokeColor}
-        eraserWidth={isErasing ? strokeWidth : 0}
-        className="w-full h-[400px]"
-        readOnly={!isDrawer}
-        onChange={isDrawer ? onDrawChange : undefined}
-        style={{ pointerEvents: isDrawer ? 'auto' : 'none' }}
-      />
+      <Stage
+        width={500}
+        height={400}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        ref={stageRef}
+        style={{ pointerEvents: isDrawer ? 'auto' : 'none', background: 'white' }}
+      >
+        <Layer>
+          {lines.map((line, i) => (
+            <Line
+              key={i}
+              points={line.points}
+              stroke={line.strokeColor}
+              strokeWidth={line.strokeWidth}
+              tension={0.5}
+              lineCap="round"
+              lineJoin="round"
+              globalCompositeOperation={line.isErasing ? 'destination-out' : 'source-over'}
+            />
+          ))}
+        </Layer>
+      </Stage>
     </div>
   );
 });
