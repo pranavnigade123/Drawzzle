@@ -1,8 +1,9 @@
 import redisClient from '../redis/redisClient.js';
 import { createLobby, joinLobby, getLobby } from '../redis/lobbyStore.js';
+import { WORDS } from '../utils/words.js';
 
 // Word list for the game
-const WORDS = ['apple', 'house', 'tree', 'car', 'dog'];
+// const WORDS = ['apple', 'house', 'tree', 'car', 'dog'];
 
 export default function lobbySocket(io, socket) {
   // Create lobby
@@ -100,8 +101,8 @@ export default function lobbySocket(io, socket) {
 
   // Drawing
   socket.on('drawing', ({ lobbyCode, paths }) => {
-    socket.to(lobbyCode).emit('drawing-update', { paths });
-  });
+  socket.to(lobbyCode).emit('drawing-update', { paths });
+});
 
   // Disconnect
   socket.on('disconnect', () => {

@@ -1,7 +1,5 @@
 import redisClient from '../redis/redisClient.js';
-
-// Word list (for consistency with lobbySocket.js)
-const WORDS = ['apple', 'house', 'tree', 'car', 'dog'];
+import { WORDS } from '../utils/words.js';
 
 export default function gameSocket(io, socket) {
   socket.on('drawing', async ({ lobbyCode, paths }) => {
@@ -37,16 +35,14 @@ export default function gameSocket(io, socket) {
 
     if (!player.score) player.score = 0;
     if (isCorrect) {
-      player.score += 100; // Award 100 points
-      console.log(`Correct guess by ${nickname} for ${game.currentWord}, triggering next round`);
+      player.score += 100;
       socket.emit('guess-result', { isCorrect: true });
       io.to(lobbyCode).emit('chat-message', { nickname, message: guess, isCorrect: true, timestamp: Date.now() });
-      io.to(lobbyCode).emit('game-updated', game); // Sync scores
-      // Emit next-round to all clients in the lobby
+      await redisClient.set(`game:${lobbyCode}`, JSON.stringify(game));
+      io.to(lobbyCode).emit('game-updated', game);
       setTimeout(() => {
-        io.to(lobbyCode).emit('next-round', { code: lobbyCode }); // Ensure all clients receive it
-        console.log('Next round emitted for lobby:', lobbyCode);
-      }, 1000); // 1-second delay
+        io.to(lobbyCode).emit('next-round', { code: lobbyCode });
+      }, 1000);
     } else {
       console.log(`Incorrect guess by ${nickname}: ${guess}`);
       io.to(lobbyCode).emit('chat-message', { nickname, message: guess, isCorrect: false, timestamp: Date.now() });
