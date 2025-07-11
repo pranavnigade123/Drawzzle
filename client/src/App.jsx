@@ -1,11 +1,11 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import Game from './pages/Game';
+import GameOver from './pages/GameOver';
 import Home from './pages/Home';
 import Lobby from './pages/Lobby';
 import LobbyRoom from './pages/LobbyRoom';
-import Game from './pages/Game';
-import GameOver from './pages/GameOver';
 import './index.css';
 
 function App() {

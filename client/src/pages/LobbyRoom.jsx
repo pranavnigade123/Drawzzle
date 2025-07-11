@@ -1,31 +1,44 @@
 import { useEffect, useState } from 'react';
-import { useLocation, useParams, useNavigate } from 'react-router-dom';
-import socket from '../sockets/lobby';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
+import socket from '../sockets/socket';
 
-const LobbyRoom = () => {
+export default function LobbyRoom() {
   const { lobbyCode } = useParams();
   const { state } = useLocation();
   const [lobby, setLobby] = useState(state?.lobby || null);
   const navigate = useNavigate();
+  const socketId = localStorage.getItem('socketId');
 
   useEffect(() => {
-    if (!state?.lobby) {
+    if (!lobby || !lobby.players.find((p) => p.socketId === socketId)) {
       socket.emit('get-lobby', { code: lobbyCode });
     }
 
     socket.on('lobby-updated', (data) => {
-      setLobby(data);
+      if (data.players.find((p) => p.socketId === socketId)) {
+        setLobby(data);
+      } else {
+        toast.error('You are not in this lobby.');
+        navigate('/');
+      }
     });
 
     socket.on('game-started', ({ game }) => {
       navigate(`/game/${lobbyCode}`, { state: { game } });
     });
 
+    socket.on('lobby-error', ({ message }) => {
+      toast.error(message);
+      navigate('/');
+    });
+
     return () => {
       socket.off('lobby-updated');
       socket.off('game-started');
+      socket.off('lobby-error');
     };
-  }, [lobbyCode, state, navigate]);
+  }, [lobbyCode, lobby, socketId, navigate]);
 
   const handleStartGame = () => {
     socket.emit('start-game', { code: lobbyCode });
@@ -42,9 +55,7 @@ const LobbyRoom = () => {
           <li key={p.nickname}>👤 {p.nickname}</li>
         ))}
       </ul>
-
-      {/* Only host sees this */}
-      {lobby.host === socket.id && (
+      {lobby.host === socketId && (
         <button
           className="bg-purple-600 text-white px-4 py-2 rounded"
           onClick={handleStartGame}
@@ -54,6 +65,4 @@ const LobbyRoom = () => {
       )}
     </div>
   );
-};
-
-export default LobbyRoom;
+}

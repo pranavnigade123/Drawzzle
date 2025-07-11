@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 
-const GameOver = () => {
+export default function GameOver() {
   const { state } = useLocation();
   const game = state?.game;
 
@@ -24,6 +24,4 @@ const GameOver = () => {
       </a>
     </div>
   );
-};
-
-export default GameOver;
+}

@@ -1,7 +1,7 @@
-import { useRef, useImperativeHandle, forwardRef } from 'react';
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { ReactSketchCanvas } from 'react-sketch-canvas';
 
-const Canvas = ({ isDrawer, onDrawChange }, ref) => {
+const Canvas = forwardRef(({ isDrawer, onDrawChange }, ref) => {
   const canvasRef = useRef(null);
 
   useImperativeHandle(ref, () => ({
@@ -23,6 +23,6 @@ const Canvas = ({ isDrawer, onDrawChange }, ref) => {
       />
     </div>
   );
-};
+});
 
-export default forwardRef(Canvas);
+export default Canvas;

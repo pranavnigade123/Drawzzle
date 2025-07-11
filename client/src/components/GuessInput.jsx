@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Button } from './Button';
+import Button from './Button';
 
-export const GuessInput = ({ onSubmit, isCorrect }) => {
+export default function GuessInput({ onSubmit, isCorrect }) {
   const [guess, setGuess] = useState('');
 
   const handleSubmit = () => {
@@ -25,4 +25,4 @@ export const GuessInput = ({ onSubmit, isCorrect }) => {
       {isCorrect === false && <p className="text-red-500 font-bold mt-4">❌ Wrong guess!</p>}
     </div>
   );
-};
+}
