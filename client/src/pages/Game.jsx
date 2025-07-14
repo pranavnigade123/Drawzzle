@@ -22,7 +22,7 @@ export default function Game() {
   const canvasRef = useRef(null);
   const isDrawer = game?.drawer?.socketId === socketId;
   let lastEmitTime = 0;
-  const debounceDelay = 100;
+  const debounceDelay = 50;
 
   useSocket({
     'game-updated': (newGame) => {
@@ -42,12 +42,13 @@ export default function Game() {
     'drawing-update': ({ paths, strokeColor, strokeWidth, isErasing }) => {
       if (!isDrawer && canvasRef.current) {
         console.log('Received drawing update for lobby:', lobbyCode, { paths, strokeColor, strokeWidth, isErasing });
+        // Log paths to verify isErasing
+        console.log('Paths received:', paths.map(p => ({ ...p, isErasing: p.isErasing })));
         const formattedPaths = paths.map(path => ({
-          ...path,
           points: path.points,
-          strokeColor: path.strokeColor || (isErasing ? 'white' : strokeColor), // Preserve original color
+          strokeColor: path.isErasing ? 'white' : (path.strokeColor || strokeColor),
           strokeWidth: path.strokeWidth || strokeWidth,
-          isErasing: path.isErasing || isErasing,
+          isErasing: path.isErasing || false, // Ensure isErasing is explicitly set
         }));
         canvasRef.current.loadPaths(formattedPaths);
       }
@@ -98,9 +99,13 @@ export default function Game() {
 
     const paths = canvasRef.current.exportPaths();
     const { strokeColor, strokeWidth, isErasing } = canvasRef.current.getStrokeAttributes();
-    // Only emit if there’s a change (e.g., new stroke or eraser toggle)
-    if (paths.length > 0 && (paths[paths.length - 1].points.length > 2 || isErasing !== paths[paths.length - 1].isErasing)) {
-      console.log('Emitting drawing for lobby:', lobbyCode, { paths, strokeColor, strokeWidth, isErasing });
+    if (paths.length > 0) {
+      console.log('Emitting drawing for lobby:', lobbyCode, { 
+        paths: paths.map(p => ({ ...p, isErasing: p.isErasing })), 
+        strokeColor, 
+        strokeWidth, 
+        isErasing 
+      });
       socket.emit('drawing', { 
         lobbyCode, 
         paths,
