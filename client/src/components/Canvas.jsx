@@ -23,7 +23,7 @@ const Canvas = forwardRef(({ isDrawer, onDrawChange, lobbyCode }, ref) => {
       setLines([]); // Reset state
       if (stageRef.current) {
         stageRef.current.clear();
-        stageRef.current.draw(); // Force re-render
+        stageRef.current.batchDraw(); // Force re-render
       }
       if (isDrawer) {
         socket.emit('clear-canvas', { lobbyCode });
@@ -44,16 +44,28 @@ const Canvas = forwardRef(({ isDrawer, onDrawChange, lobbyCode }, ref) => {
     if (!isDrawer) return;
     setIsDrawing(true);
     const pos = e.target.getStage().getPointerPosition();
-    setLines([...lines, { points: [pos.x, pos.y], strokeColor: isErasing ? 'white' : strokeColor, strokeWidth, isErasing }]);
+    const newLine = {
+      points: [pos.x, pos.y],
+      strokeColor: isErasing ? 'white' : strokeColor,
+      strokeWidth: isErasing ? strokeWidth * 2 : strokeWidth, // Larger eraser for better UX
+      isErasing,
+    };
+    setLines([...lines, newLine]);
   };
 
   const handleMouseMove = (e) => {
     if (!isDrawing || !isDrawer) return;
     const stage = e.target.getStage();
     const point = stage.getPointerPosition();
-    const lastLine = lines[lines.length - 1];
-    lastLine.points = lastLine.points.concat([point.x, point.y]);
-    setLines([...lines.slice(0, -1), lastLine]);
+    setLines((prevLines) => {
+      const lastLine = prevLines[prevLines.length - 1];
+      if (!lastLine) return prevLines;
+      const updatedLine = {
+        ...lastLine,
+        points: [...lastLine.points, point.x, point.y],
+      };
+      return [...prevLines.slice(0, -1), updatedLine];
+    });
     onDrawChange();
   };
 
@@ -80,37 +92,37 @@ const Canvas = forwardRef(({ isDrawer, onDrawChange, lobbyCode }, ref) => {
       {isDrawer && (
         <div className="flex gap-2 mb-2 justify-center">
           <Button
-            className={`p-2 ${strokeColor === 'black' ? 'bg-gray-300' : ''}`}
+            className={`p-2 ${strokeColor === 'black' && !isErasing ? 'bg-gray-300' : ''}`}
             onClick={() => handleColorChange('black')}
           >
             Black
           </Button>
           <Button
-            className={`p-2 ${strokeColor === 'red' ? 'bg-gray-300' : ''}`}
+            className={`p-2 ${strokeColor === 'red' && !isErasing ? 'bg-gray-300' : ''}`}
             onClick={() => handleColorChange('red')}
           >
             Red
           </Button>
           <Button
-            className={`p-2 ${strokeColor === 'blue' ? 'bg-gray-300' : ''}`}
+            className={`p-2 ${strokeColor === 'blue' && !isErasing ? 'bg-gray-300' : ''}`}
             onClick={() => handleColorChange('blue')}
           >
             Blue
           </Button>
           <Button
-            className={`p-2 ${strokeWidth === 2 ? 'bg-gray-300' : ''}`}
+            className={`p-2 ${strokeWidth === 2 && !isErasing ? 'bg-gray-300' : ''}`}
             onClick={() => handleBrushSizeChange(2)}
           >
             Small
           </Button>
           <Button
-            className={`p-2 ${strokeWidth === 4 ? 'bg-gray-300' : ''}`}
+            className={`p-2 ${strokeWidth === 4 && !isErasing ? 'bg-gray-300' : ''}`}
             onClick={() => handleBrushSizeChange(4)}
           >
             Medium
           </Button>
           <Button
-            className={`p-2 ${strokeWidth === 8 ? 'bg-gray-300' : ''}`}
+            className={`p-2 ${strokeWidth === 8 && !isErasing ? 'bg-gray-300' : ''}`}
             onClick={() => handleBrushSizeChange(8)}
           >
             Large
