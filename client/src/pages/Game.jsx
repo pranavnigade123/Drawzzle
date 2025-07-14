@@ -21,24 +21,41 @@ export default function Game() {
   const [timeLeft, setTimeLeft] = useState(null);
   const canvasRef = useRef(null);
   const isDrawer = game?.drawer?.socketId === socketId;
+  let lastEmitTime = 0;
+  const debounceDelay = 100;
 
   useSocket({
     'game-updated': (newGame) => {
       if (newGame.players.find((p) => p.socketId === socketId)) {
         setGame(newGame);
         setIsCorrect(null);
-        setTimeLeft(Math.floor(newGame.roundDuration / 1000)); // Reset timer
+        setTimeLeft(Math.floor(newGame.roundDuration / 1000));
         if (canvasRef.current) {
           canvasRef.current.clearCanvas();
+          console.log('Game updated, canvas cleared for lobby:', lobbyCode);
         }
       } else {
         toast.error('You are not in this game.');
         navigate('/');
       }
     },
-    'drawing-update': ({ paths }) => {
+    'drawing-update': ({ paths, strokeColor, strokeWidth, isErasing }) => {
       if (!isDrawer && canvasRef.current) {
-        canvasRef.current.loadPaths(paths);
+        console.log('Received drawing update for lobby:', lobbyCode, { paths, strokeColor, strokeWidth, isErasing });
+        const formattedPaths = paths.map(path => ({
+          ...path,
+          points: path.points,
+          strokeColor: path.strokeColor || (isErasing ? 'white' : strokeColor), // Preserve original color
+          strokeWidth: path.strokeWidth || strokeWidth,
+          isErasing: path.isErasing || isErasing,
+        }));
+        canvasRef.current.loadPaths(formattedPaths);
+      }
+    },
+    'clear-canvas': () => {
+      if (!isDrawer && canvasRef.current) {
+        console.log('Clearing canvas for guesser in lobby:', lobbyCode);
+        canvasRef.current.clearCanvas();
       }
     },
     'game-fetched': (fetchedGame) => {
@@ -76,16 +93,23 @@ export default function Game() {
   const handleDrawChange = () => {
     if (!canvasRef.current || !isDrawer) return;
 
-    const debounceTimeout = setTimeout(async () => {
-      try {
-        const paths = await canvasRef.current.exportPaths();
-        socket.emit('drawing', { lobbyCode, paths });
-      } catch (error) {
-        console.error('Error exporting paths:', error);
-      }
-    }, 100);
+    const now = Date.now();
+    if (now - lastEmitTime < debounceDelay) return;
 
-    return () => clearTimeout(debounceTimeout);
+    const paths = canvasRef.current.exportPaths();
+    const { strokeColor, strokeWidth, isErasing } = canvasRef.current.getStrokeAttributes();
+    // Only emit if there’s a change (e.g., new stroke or eraser toggle)
+    if (paths.length > 0 && (paths[paths.length - 1].points.length > 2 || isErasing !== paths[paths.length - 1].isErasing)) {
+      console.log('Emitting drawing for lobby:', lobbyCode, { paths, strokeColor, strokeWidth, isErasing });
+      socket.emit('drawing', { 
+        lobbyCode, 
+        paths,
+        strokeColor,
+        strokeWidth,
+        isErasing,
+      });
+    }
+    lastEmitTime = now;
   };
 
   const handleGuessSubmit = (guess) => {
@@ -108,11 +132,7 @@ export default function Game() {
       <p>👥 Players: {game.players.length}</p>
       <p className="text-lg font-bold mt-2">⏰ Time Left: {timeLeft !== null ? `${timeLeft}s` : 'Loading...'}</p>
       {isDrawer && <p className="text-lg font-bold mt-2">Draw this: {game.currentWord}</p>}
-      <p className="mt-2 text-yellow-400 text-lg">
-        Hello, <strong>{nickname}</strong>! 🎉
-        {isDrawer ? ' You are the DRAWER 🎨 – start drawing!' : ' You are a GUESSER 🤔 – try to guess the word!'}
-      </p>
-      <Canvas isDrawer={isDrawer} onDrawChange={handleDrawChange} ref={canvasRef} />
+      <Canvas isDrawer={isDrawer} onDrawChange={handleDrawChange} ref={canvasRef} lobbyCode={lobbyCode} />
       {!isDrawer && (
         <>
           <GuessInput onSubmit={handleGuessSubmit} isCorrect={isCorrect} />
