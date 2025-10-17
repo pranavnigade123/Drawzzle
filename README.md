@@ -1,6 +1,4 @@
----
-
-# 🎨 Drawzzle — Real-Time Multiplayer Drawing Game
+Drawzzle — Real-Time Multiplayer Drawing Game
 
 **Drawzzle** is a full-stack real-time multiplayer drawing and guessing game built with **React**, **Node.js**, **Socket.IO**, and **Redis**.
 Players can create or join lobbies, draw prompts on a live canvas, and guess in real time — similar to Skribbl.io, but built entirely from scratch.
